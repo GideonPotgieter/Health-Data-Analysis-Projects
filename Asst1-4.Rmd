@@ -1,7 +1,7 @@
 ---
 title: "Smoking and the risk of disease"
-author: "Your Name"
-date: "Today's date"
+author: "Gideon Potgieter"
+date: "2/20/23"
 output: html_document
 ---
 
@@ -14,24 +14,57 @@ knitr::opts_chunk$set(echo = TRUE)
 ```{r load_libraries, echo=FALSE, include=FALSE}
 #load any of the libraries you will use in this code chunk
 library(tidyverse)
-
 ```
 
 ```{r read_data, echo=FALSE, include=FALSE}
 # Read in the data
 nmes_data <- read_csv("nmesUNPROC.csv")
+
+library(broom) 
+library(kableExtra) 
+library(gtsummary)
 ```
 
 ```{r recode_data, echo=FALSE, include=FALSE}
 # Place any code that you used to recode the data here
+nmes_data <- nmes_data %>%
+  mutate(eversmk = factor(eversmk, levels = c("0", "1"), labels = c("Never smoker", "Ever smoker")),
+         lc5 = factor(lc5, levels = c("0", "1"), labels = c("No LC", "LC")),
+         chd5 = factor(chd5, levels = c("0", "1"), labels = c("No CHD", "CHD")),
+         female = factor(female, levels= c("0", "1"), labels = c("Male", "Female")),
+         current = factor(current, levels= c("0", "1"), labels = c("Not current smoker", "Current smoker")),
+         former = factor(former, levels= c("0", "1"), labels = c("Not former smoker", "Former smoker")),
+         beltuse = factor(beltuse, levels= c("1", "2", "3"), labels = c("Rare", "Some", "Almost always")),
+         educate = factor(educate, levels= c("1", "2", "3", "4"), labels = c("College grad", "Some college", "HS grad", "Other")),
+         marital = factor(marital, levels= c("1", "2", "3", "4", "5"), labels = c("Married", "Widowed", "Divorced", "Separated", "Never married")),
+         poor = factor(poor, levels= c("0", "1"), labels = c("Not poor", "Poor"))
+         )
 
+nmes_data <- nmes_data %>%
+  mutate(disease = factor(lc5 == "LC" | chd5 == "CHD", 
+                          levels=c(FALSE,TRUE), 
+                          labels=c("No MSCD", "MSCD")))
 ```
 
 **Question 1.1: How does the risk of disease compare for smokers and otherwise similar non-smokers?**
 
 ```{r q1_display, echo=FALSE}
 ### put code to create data display here
+Table_1 <- nmes_data %>%
+  count(eversmk, female, poor, disease) %>%
+  group_by(female, poor, eversmk) %>%
+  mutate(prop = n/sum(n)) %>%
+   mutate(percent =round(n/sum(n)*100,1))
 
+Table_1 %>%
+  filter(disease == "MSCD") %>%
+  ggplot() +
+  geom_bar(mapping = aes(x = eversmk, y = percent, fill = female), stat = "identity") + facet_grid(female~poor) +
+   geom_text(aes(x = eversmk, y = percent, label = percent)) +
+  labs(y= "Risk of MSCD (%)",
+       x= "",
+       title= "Risk of MSCD, comparing smokers to non-smokers grouped by income and sex", 
+       fill = "Sex")
 ```
 
 ```{r q1_analysis, echo=FALSE}
@@ -39,23 +72,111 @@ nmes_data <- read_csv("nmesUNPROC.csv")
 ### you could use either your logistic regression model or your propensity scores model
 ### or you could include both and compare the results
 
+model1 <- glm(disease ~ eversmk + poor + female + educate, family=binomial(link="logit"), data=nmes_data)
+
+model1 %>%
+  tidy(exponentiate = TRUE, conf.int = TRUE, conf.level = 0.96) %>%
+  filter(term != "(Intercept)") %>%
+  mutate(conf.int = paste0("(", round(conf.low,2), ", ", round(conf.high,2), ")")) %>%
+  select(Term = term, OR = estimate, `p-value` = p.value, `95% CI` = conf.int) %>%
+  kable(digits = 3, format = "markdown")
 ```
 
-Write up your results HERE in a paragraph to answer Question 1.1.  In your write-up, you should refer to your data displays and your analysis results.  Be numerate!
+To find out how the risk of disease compares for smokers and otherwise similar non-smokers, a bar plot was created that shows the risk of MSCD as a proportion grouped by socioeconomic status and sex. In all four subgroups, people who have ever smoked were more likely to have MSCD, which supports the hypothesis that the risk of disease is greater for smokers than otherwise similar non-smokers. To find out if the difference is statistically significant, a logistic regression model was created that shows that the odds of having MSCD for smokers was 1.7 times the odds of having MSCD for non-smokers who had the same socioeconomic status, sex, and education level. The p-value was 0.000, meaning it is statistically significant, and the 95% confidence interval was (1.29, 2.27). Therefore, the risk of disease is higher for smokers than for otherwise similar non-smokers.
 
-**Queston 1.2: Does the contribution of smoking to the risk of disease vary by sex or socio-economic status (SES)?**
+
+**Question 1.2: Does the contribution of smoking to the risk of disease vary by sex or socio-economic status (SES)?**
 
 ```{r q2_display, echo=FALSE}
 ### put code to create data display here
+my_table <- nmes_data %>%
+  count(poor, female, eversmk, disease) %>%
+  group_by(poor, female, eversmk) %>%
+  mutate(prop = n/sum(n)) %>%
+  filter(disease == "MSCD") %>%
+  ungroup() %>%
+  group_by(poor, female) %>%
+  mutate(rel.risk = round(prop/prop[eversmk == "Never smoker"],1))
 
+my_table %>%
+  filter(eversmk == "Ever smoker") %>%
+  ggplot() +
+  geom_bar(aes(x = female, y = rel.risk, fill = female), stat = "identity") +
+  facet_wrap(~ poor) + 
+  geom_text(aes(x = female, y = rel.risk, label = rel.risk)) +
+  labs(y= "Relative Risk of MSCD",
+       x= "",
+       title= "Relative risk of MSCD, comparing male smokers to female smokers, holding socioeconomic status constant", 
+       fill = "Sex")
+
+my_table %>%
+  filter(eversmk == "Ever smoker") %>%
+  ggplot() +
+  geom_bar(aes(x = poor, y = rel.risk, fill = poor), stat = "identity") +
+  facet_wrap(~ female) + 
+  geom_text(aes(x = poor, y = rel.risk, label = rel.risk)) +
+  labs(y= "Relative Risk of MSCD",
+       x= "",
+       title= "Relative risk of MSCD, comparing poor smokers to not poor smokers, holding sex constant", 
+       fill = "poor")
 ```
 
 ```{r q2_analysis, echo=FALSE}
 ### put code to fit statistical model and produce table of results here
+#prop model for female:
 
+my_data <- nmes_data
+
+prop_model <- glm(eversmk ~ age + female, family = binomial(link="logit"), data=my_data, na.action = na.exclude)
+
+my_data <- my_data %>%
+  mutate(ps = predict(prop_model, type = "response"))
+
+ps_quintiles <- quantile(my_data$ps, probs=c(0, 0.2, 0.4, 0.6, 0.8, 1), na.rm=TRUE)
+
+my_data <- my_data %>%
+  mutate(ps_strata = cut(ps, breaks=ps_quintiles, include.lowest=TRUE))
+
+model_ps_strata <- glm(disease ~ eversmk*female + ps_strata, family = binomial(link="logit"), data=my_data)
+tidy(model_ps_strata)
+
+tidy(model_ps_strata, exponentiate = TRUE, conf.int = TRUE )
+
+model_ps_strata %>%
+  tidy(exponentiate = TRUE, conf.int = TRUE, conf.level = 0.96) %>%
+  filter(term != "(Intercept)") %>%
+  mutate(conf.int = paste0("(", round(conf.low,2), ", ", round(conf.high,2), ")")) %>%
+  select(Term = term, OR = estimate, `p-value` = p.value, `95% CI` = conf.int) %>%
+  kable(digits = 3, format = "markdown")
+
+#prop model for SES:
+
+my_data <- nmes_data
+
+prop_model <- glm(eversmk ~ age + poor, family = binomial(link="logit"), data=my_data, na.action = na.exclude)
+
+my_data <- my_data %>%
+  mutate(ps = predict(prop_model, type = "response"))
+
+ps_quintiles <- quantile(my_data$ps, probs=c(0, 0.2, 0.4, 0.6, 0.8, 1), na.rm=TRUE)
+
+my_data <- my_data %>%
+  mutate(ps_strata = cut(ps, breaks=ps_quintiles, include.lowest=TRUE))
+
+model_ps_strata <- glm(disease ~ eversmk*poor + ps_strata, family = binomial(link="logit"), data=my_data)
+tidy(model_ps_strata)
+
+tidy(model_ps_strata, exponentiate = TRUE, conf.int = TRUE )
+
+model_ps_strata %>%
+  tidy(exponentiate = TRUE, conf.int = TRUE, conf.level = 0.96) %>%
+  filter(term != "(Intercept)") %>%
+  mutate(conf.int = paste0("(", round(conf.low,2), ", ", round(conf.high,2), ")")) %>%
+  select(Term = term, OR = estimate, `p-value` = p.value, `95% CI` = conf.int) %>%
+  kable(digits = 3, format = "markdown")
 ```
 
-Write up your results HERE in a paragraph to answer Question 1.2.  In your write-up, you should refer to your data displays and your analysis results.  Be numerate!
+The first display shows the relative risk of MSCD comparing male smokers to female smokers and holding socioeconomic status constant, while the second display shows the relative risk of MSCD comparing poor smokers to not poor smokers holding sex constant.  The relative risk was higher for male smokers than female smokers in both socioeconomic groups, and the relative risk was higher for poor smokers than not poor smokers in both sexes. The first multivariable logistic regression model shows that the odds ratio of disease for females is 13% lower than the odds ratio of disease for males of the same age, but this result is not statistically significant (p-value = 0.6). The second multivariable logistic regression model shows that the odds ratio of disease for poor people is 79% higher than the odds ratio for not poor people of the same age. This result is statistically significant (p-value = 0.033), so we know that socioeconomic status affects the contribution of smoking to the risk of disease.
 
 ```{r submission_instructions, echo=FALSE, include=FALSE}
 #When you are ready to submit your assignment, do ALL of the following:
