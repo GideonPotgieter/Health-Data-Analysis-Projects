@@ -5,10 +5,31 @@ date: "2/20/23"
 output: html_document
 ---
 
+##### Comments from Dr. Taub: 
+
+* Good job!  
+* You can see any changes/comments made directly in your document by searching for "MAT" in the search box in RStudio cloud.
+* You should include captions for the figures
+
+**Comments on Question 1**:
+* For Q1, your graph, analysis, and results are very nicely done! Some small comments for improvement are below. 
+* While you provide a good description of what you see in the plot, I would like to see more quantitative support for your statements, using actual numbers from the visualization.
+* Your interpretation of your odds ratio for both models is correct -- to make it a nice numerate sentence we can just stick the confidence interval in parentheses at the end rather than giving it its own sentence.  So: To find out if the difference is statistically significant, a logistic regression model was created that shows that the odds of having MSCD for smokers was 1.7 times the odds of having MSCD for non-smokers who had the same socioeconomic status, sex, and education level (p < 0.05, 95% CI (1.29, 2.27)). 
+
+**Comments on Question 2**:
+* Overall, there is too much raw R output and code visible. You don't need to describe the recoding of the variables, except to clearly state what the outcome is defined as.
+* Nice graphs here, effectively showing the relative risks for the groups of interest. Your titles are getting truncated; you can alleviate this by including a newline character "\n" to break the title across multiple lines. However, in your write-up describing what they show, you should include specific numbers from the visualizations to support your statements.
+* Please include a caption on the tables indicating what variables are included in your propensity score model, so that it is clear without reading the full text what variables are being controlled for in the analysis. You do not need to include table entries for the propensity score quintiles, just the variables relevant to the question (main effects and interaction terms)
+* Your interpretation of the model results is correct and overall concise, but I would suggest including the numerical information about statistical significance in a parenthetical statement rather than its own sentence.
+* Why did you choose to use propensity scores here in contrast to your analysis for Question 1? And to control for age here, where you did not control for it above? It is OK to do it this way, but might be worth thinking about or addressing.
+
+
+
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
+MAT: You can remove this line in your final report
 **Due Monday, February 20 @ midnight through Github**
 
 ```{r load_libraries, echo=FALSE, include=FALSE}
